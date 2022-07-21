@@ -79,6 +79,9 @@ class Mint:
             warranty = sp.TInt,
             mintkart_address = sp.TAddress)
 
+    def get_batch_params_type():
+        return sp.TList(Mint.get_params_type())
+
 class Transfer:
     def get_params_type():
         return sp.TRecord(
@@ -157,33 +160,35 @@ class MintkartFA2(FA2.FA2):
     """ [tokenId, metadata, itemId, warranty, mintkart_address] """
     @sp.entry_point
     def mint(self, params):
-        sp.set_type_expr(params, Mint.get_params_type())
+        sp.set_type_expr(params, Mint.get_batch_params_type())
         sp.verify((self.data.sellers).contains(sp.sender), message = FA2ErrorMessage.NOT_SELLER)
-        sp.verify(~ self.token_id_set.contains(self.data.all_tokens, params.tokenId), message = FA2ErrorMessage.DUPLICATE_TOKEN_ID)
         
-        self.token_id_set.add(self.data.all_tokens, params.tokenId)
-        
-        user = self.ledger_key.make(sp.sender, params.tokenId)
-        self.data.ledger[user] = FA2.Ledger_value.make(1)
+        sp.for _params in params:
+            sp.verify(~ self.token_id_set.contains(self.data.all_tokens, _params.tokenId), message = FA2ErrorMessage.DUPLICATE_TOKEN_ID)
+            
+            self.token_id_set.add(self.data.all_tokens, _params.tokenId)
+            
+            user = self.ledger_key.make(sp.sender, _params.tokenId)
+            self.data.ledger[user] = FA2.Ledger_value.make(1)
 
-        self.data.token_metadata[params.tokenId] = sp.record(
-            token_id    = params.tokenId,
-            token_info  = params.metadata
-        )
-        if self.config.store_total_supply:
-            self.data.total_supply[params.tokenId] = 1
+            self.data.token_metadata[_params.tokenId] = sp.record(
+                token_id    = _params.tokenId,
+                token_info  = _params.metadata
+            )
+            if self.config.store_total_supply:
+                self.data.total_supply[_params.tokenId] = 1
 
-        allowances_key = Allowances.make_key(sp.sender, params.mintkart_address, params.tokenId)
-        self.data.allowances[allowances_key] = 1
+            allowances_key = Allowances.make_key(sp.sender, _params.mintkart_address, _params.tokenId)
+            self.data.allowances[allowances_key] = 1
 
-        mintkart = sp.contract(Twin.get_create_params_type(), params.mintkart_address, entry_point = "create_twin").open_some()
-        sp.transfer(sp.record(
-                        itemId = params.itemId, 
-                        tokenId = params.tokenId,
-                        seller = sp.sender,
-                        warranty = params.warranty),
-                    sp.mutez(0), 
-                    mintkart)
+            mintkart = sp.contract(Twin.get_create_params_type(), _params.mintkart_address, entry_point = "create_twin").open_some()
+            sp.transfer(sp.record(
+                            itemId = _params.itemId, 
+                            tokenId = _params.tokenId,
+                            seller = sp.sender,
+                            warranty = _params.warranty),
+                        sp.mutez(0), 
+                        mintkart)
 
     """ [from_, tokenId, to_] """
     @sp.entry_point
@@ -293,7 +298,7 @@ class Mintkart(sp.Contract):
             admin = admin,
             fa2_contract_address = fa2_contract_address,
             metadata = metadata,
-            warrenties = sp.big_map(
+            warranties = sp.big_map(
                 l = {},
                 tkey = sp.TNat,
                 tvalue = sp.TRecord(warranty = sp.TInt, claimedOn = sp.TTimestamp, burntOn = sp.TTimestamp)),
@@ -315,7 +320,7 @@ class Mintkart(sp.Contract):
             tokenId = params.tokenId,
             seller = params.seller,
             createdOn = sp.now)
-        self.data.warrenties[params.tokenId] = sp.record(warranty = params.warranty, claimedOn = sp.timestamp(0), burntOn = sp.timestamp(0))
+        self.data.warranties[params.tokenId] = sp.record(warranty = params.warranty, claimedOn = sp.timestamp(0), burntOn = sp.timestamp(0))
 
     """ [itemId, buyer] """
     @sp.entry_point
@@ -331,15 +336,15 @@ class Mintkart(sp.Contract):
                             sp.mutez(0), 
                             fa2_contract)
 
-        self.data.warrenties[twin.tokenId].claimedOn = sp.now
+        self.data.warranties[twin.tokenId].claimedOn = sp.now
 
     """ [tokenId, oldItemId, newItemId] """
     @sp.entry_point
     def replace_item(self, params):
         sp.verify(sp.sender == self.data.fa2_contract_address, message = MarketPlaceErrorMessage.NOT_ADMIN)
-        sp.verify(self.data.warrenties.contains(params.tokenId), message = MarketPlaceErrorMessage.TWINNING_DOESNOT_EXIST)
+        sp.verify(self.data.warranties.contains(params.tokenId), message = MarketPlaceErrorMessage.TWINNING_DOESNOT_EXIST)
 
-        warranty_details = self.data.warrenties[params.tokenId]
+        warranty_details = self.data.warranties[params.tokenId]
         sp.verify(sp.now - warranty_details.claimedOn <= warranty_details.warranty, message = MarketPlaceErrorMessage.WARRANTY_EXPIRED)
 
         sp.if self.data.replacements.contains(params.tokenId):
@@ -351,11 +356,11 @@ class Mintkart(sp.Contract):
     @sp.entry_point
     def burn(self, params):
         sp.verify(sp.sender == self.data.fa2_contract_address, message = MarketPlaceErrorMessage.NOT_ADMIN)
-        sp.verify(self.data.warrenties.contains(params.tokenId), message = MarketPlaceErrorMessage.TWINNING_DOESNOT_EXIST)
-        warranty_details = self.data.warrenties[params.tokenId]
+        sp.verify(self.data.warranties.contains(params.tokenId), message = MarketPlaceErrorMessage.TWINNING_DOESNOT_EXIST)
+        warranty_details = self.data.warranties[params.tokenId]
         sp.verify(sp.now - warranty_details.claimedOn > warranty_details.warranty, message = MarketPlaceErrorMessage.WARRANTY_NOT_EXPIRED)
 
-        self.data.warrenties[params.tokenId].burntOn = sp.now
+        self.data.warranties[params.tokenId].burntOn = sp.now
 
     """ [address] """
     @sp.private_lambda(with_operations=True, with_storage="read-only", wrap_call=True)
@@ -459,12 +464,12 @@ def test():
     sc += fa2.add_seller(params).run(sender = admin)
 
 
-    sc.p("Seller 1 adds a new item for sale.")
-    params = newItem(1, sp.string("item-id-1"), 5000, mp.address)
+    sc.p("Seller 1 adds new items for sale.")
+    params = [newItem(1, sp.string("item-id-1"), 5000, mp.address), newItem(2, sp.string("item-id-2"), 10000, mp.address)]
     sc += fa2.mint(params).run(sender = seller1)
 
     sc.p("Seller 2 adds a new item for sale.")
-    params = newItem(2, sp.string("item-id-2"), 3000, mp.address)
+    params = [newItem(3, sp.string("item-id-3"), 15000, mp.address), newItem(4, sp.string("item-id-4"), 20000, mp.address)]
     sc += fa2.mint(params).run(sender = seller2)
 
 
