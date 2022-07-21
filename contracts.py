@@ -22,10 +22,10 @@ class MarketPlaceErrorMessage:
     DUPLICATE_TWIN = "{}SALE_EXISTS_WITH_GIVEN_TOKEN_ID".format(PREFIX)
     TWINNING_DOESNOT_EXIST = "{}TWINNING_DOESNOT_EXIST".format(PREFIX)
     INSUFFICIENT_BALANCE = "{}INSUFFICIENT_BALANCE".format(PREFIX)
-    WARRENTY_EXPIRED = "{}WARRENTY_EXPIRED".format(PREFIX)
+    WARRANTY_EXPIRED = "{}WARRANTY_EXPIRED".format(PREFIX)
     TWINNING_ALREADY_EXIST = "{}TWINNING_ALREADY_EXIST".format(PREFIX)
     ALREADY_REPLACED_ONCE = "{}ALREADY_REPLACED_ONCE".format(PREFIX)
-    WARRENTY_NOT_EXPIRED = "{}WARRENTY_NOT_EXPIRED".format(PREFIX)
+    WARRANTY_NOT_EXPIRED = "{}WARRANTY_NOT_EXPIRED".format(PREFIX)
 
 ################### Error Messages End ###################
     
@@ -76,7 +76,7 @@ class Mint:
             tokenId = sp.TNat,
             metadata = NFTMetadata.get_type(),
             itemId = sp.TString,
-            warrenty = sp.TInt,
+            warranty = sp.TInt,
             mintkart_address = sp.TAddress)
 
 class Transfer:
@@ -113,7 +113,7 @@ class Twin:
             itemId = sp.TString, 
             tokenId = sp.TNat,
             seller = sp.TAddress,
-            warrenty = sp.TInt)
+            warranty = sp.TInt)
 
 
 class Replace:
@@ -154,7 +154,7 @@ class MintkartFA2(FA2.FA2):
             customer_service = sp.set([admin]),
             allowances = sp.big_map(l = {}, tkey = Allowances.get_key_type(), tvalue = Allowances.get_value_type()))
 
-    """ [tokenId, metadata, itemId, warrenty, mintkart_address] """
+    """ [tokenId, metadata, itemId, warranty, mintkart_address] """
     @sp.entry_point
     def mint(self, params):
         sp.set_type_expr(params, Mint.get_params_type())
@@ -181,7 +181,7 @@ class MintkartFA2(FA2.FA2):
                         itemId = params.itemId, 
                         tokenId = params.tokenId,
                         seller = sp.sender,
-                        warrenty = params.warrenty),
+                        warranty = params.warranty),
                     sp.mutez(0), 
                     mintkart)
 
@@ -296,7 +296,7 @@ class Mintkart(sp.Contract):
             warrenties = sp.big_map(
                 l = {},
                 tkey = sp.TNat,
-                tvalue = sp.TRecord(warrenty = sp.TInt, claimedOn = sp.TTimestamp, burntOn = sp.TTimestamp)),
+                tvalue = sp.TRecord(warranty = sp.TInt, claimedOn = sp.TTimestamp, burntOn = sp.TTimestamp)),
             replacements = sp.big_map(
                 l = {},
                 tkey = sp.TNat,
@@ -306,7 +306,7 @@ class Mintkart(sp.Contract):
                 tkey = sp.TString, 
                 tvalue = Twin.get_type()))
 
-    """ [itemId, tokenId, seller, warrenty] """
+    """ [itemId, tokenId, seller, warranty] """
     @sp.entry_point
     def create_twin(self, params):
         sp.verify(sp.sender == self.data.fa2_contract_address, message = MarketPlaceErrorMessage.NOT_ADMIN)
@@ -315,7 +315,7 @@ class Mintkart(sp.Contract):
             tokenId = params.tokenId,
             seller = params.seller,
             createdOn = sp.now)
-        self.data.warrenties[params.tokenId] = sp.record(warrenty = params.warrenty, claimedOn = sp.timestamp(0), burntOn = sp.timestamp(0))
+        self.data.warrenties[params.tokenId] = sp.record(warranty = params.warranty, claimedOn = sp.timestamp(0), burntOn = sp.timestamp(0))
 
     """ [itemId, buyer] """
     @sp.entry_point
@@ -339,8 +339,8 @@ class Mintkart(sp.Contract):
         sp.verify(sp.sender == self.data.fa2_contract_address, message = MarketPlaceErrorMessage.NOT_ADMIN)
         sp.verify(self.data.warrenties.contains(params.tokenId), message = MarketPlaceErrorMessage.TWINNING_DOESNOT_EXIST)
 
-        warrenty_details = self.data.warrenties[params.tokenId]
-        sp.verify(sp.now - warrenty_details.claimedOn <= warrenty_details.warrenty, message = MarketPlaceErrorMessage.WARRENTY_EXPIRED)
+        warranty_details = self.data.warrenties[params.tokenId]
+        sp.verify(sp.now - warranty_details.claimedOn <= warranty_details.warranty, message = MarketPlaceErrorMessage.WARRANTY_EXPIRED)
 
         sp.if self.data.replacements.contains(params.tokenId):
             self.data.replacements[params.tokenId].push(sp.record(fromItem = params.oldItemId, toItem = params.newItemId, replacementTime = sp.now))
@@ -352,8 +352,8 @@ class Mintkart(sp.Contract):
     def burn(self, params):
         sp.verify(sp.sender == self.data.fa2_contract_address, message = MarketPlaceErrorMessage.NOT_ADMIN)
         sp.verify(self.data.warrenties.contains(params.tokenId), message = MarketPlaceErrorMessage.TWINNING_DOESNOT_EXIST)
-        warrenty_details = self.data.warrenties[params.tokenId]
-        sp.verify(sp.now - warrenty_details.claimedOn > warrenty_details.warrenty, message = MarketPlaceErrorMessage.WARRENTY_NOT_EXPIRED)
+        warranty_details = self.data.warrenties[params.tokenId]
+        sp.verify(sp.now - warranty_details.claimedOn > warranty_details.warranty, message = MarketPlaceErrorMessage.WARRANTY_NOT_EXPIRED)
 
         self.data.warrenties[params.tokenId].burntOn = sp.now
 
@@ -416,15 +416,15 @@ def test():
         metadata = sp.utils.metadata_of_url("ipfs://QmcxDJ66gGNKRy6setAbVuoidCPgFTZm3iTtNnajHVUu4p"))
     sc += mp
 
-    def newItem(tokenId, itemId, warrenty, mintkart_address):
+    def newItem(tokenId, itemId, warranty, mintkart_address):
         return sp.record(
             tokenId = tokenId,
             itemId = itemId,
-            warrenty = warrenty,
+            warranty = warranty,
             mintkart_address = mintkart_address,
             metadata = {
-                "name" : sp.utils.bytes_of_string("Bahubali NFT #3"),
-                "symbol" : sp.utils.bytes_of_string("SUPERSTAR"),
+                "name" : sp.utils.bytes_of_string("Item Name"),
+                "symbol" : sp.utils.bytes_of_string("MINTKART"),
                 "decimals" : sp.utils.bytes_of_string("0"),
                 "artifactUri" : sp.utils.bytes_of_string("ipfs://QmdByT2kNwSLdYfASoWEXyZhRYgLtvBnzJYBM1zvZXhCnS"),
                 "displayUri" : sp.utils.bytes_of_string("ipfs://QmdByT2kNwSLdYfASoWEXyZhRYgLtvBnzJYBM1zvZXhCnS"),
@@ -486,7 +486,7 @@ def test():
     sc += fa2.init_replace_item(params).run(sender = customer_service1)
 
 
-    sc.p("Some random address tries to burn the NFT if the warrenty is expired.")
+    sc.p("Some random address tries to burn the NFT if the warranty is expired.")
     params = sp.record(tokenId = 1, owner = customer1.address, mintkart_address = mp.address)
     sc += fa2.init_burn(params).run(sender = admin, valid = False)
 
