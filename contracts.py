@@ -301,7 +301,7 @@ class Mintkart(sp.Contract):
             warranties = sp.big_map(
                 l = {},
                 tkey = sp.TNat,
-                tvalue = sp.TRecord(warranty = sp.TInt, claimedOn = sp.TTimestamp, burntOn = sp.TTimestamp)),
+                tvalue = sp.TRecord(warranty = sp.TInt, type = sp.TNat, claimedOn = sp.TTimestamp, burntOn = sp.TTimestamp)),
             replacements = sp.big_map(
                 l = {},
                 tkey = sp.TNat,
@@ -309,7 +309,11 @@ class Mintkart(sp.Contract):
             twins = sp.big_map(
                 l = {},
                 tkey = sp.TString, 
-                tvalue = Twin.get_type()))
+                tvalue = Twin.get_type()),
+            rewards = sp.big_map(
+                l = {},
+                tkey = sp.TAddress,
+                tvalue = sp.TRecord(diamond = sp.TNat, gold = sp.TNat, silver = sp.TNat, bronze = sp.TNat)))
 
     """ [itemId, tokenId, seller, warranty] """
     @sp.entry_point
@@ -320,7 +324,8 @@ class Mintkart(sp.Contract):
             tokenId = params.tokenId,
             seller = params.seller,
             createdOn = sp.now)
-        self.data.warranties[params.tokenId] = sp.record(warranty = params.warranty, claimedOn = sp.timestamp(0), burntOn = sp.timestamp(0))
+        nft_type = (sp.utils.seconds_of_timestamp(sp.now) + sp.len(params.itemId) + params.tokenId) % 4
+        self.data.warranties[params.tokenId] = sp.record(warranty = params.warranty, type = nft_type, claimedOn = sp.timestamp(0), burntOn = sp.timestamp(0))
 
     """ [itemId, buyer] """
     @sp.entry_point
@@ -337,6 +342,25 @@ class Mintkart(sp.Contract):
                             fa2_contract)
 
         self.data.warranties[twin.tokenId].claimedOn = sp.now
+        nft_type = self.data.warranties[twin.tokenId].type
+        sp.if self.data.rewards.contains(params.buyer):
+            sp.if nft_type == 0:
+                self.data.rewards[params.buyer].diamond += 1
+            sp.if nft_type == 1:
+                self.data.rewards[params.buyer].gold += 1
+            sp.if nft_type == 2:
+                self.data.rewards[params.buyer].silver += 1
+            sp.if nft_type == 3:
+                self.data.rewards[params.buyer].bronze += 1
+        sp.else:
+            sp.if nft_type == 0:
+                self.data.rewards[params.buyer] = sp.record(diamond = 1, gold = 0, silver = 0, bronze = 0)
+            sp.if nft_type == 1:
+                self.data.rewards[params.buyer] = sp.record(diamond = 0, gold = 1, silver = 0, bronze = 0)
+            sp.if nft_type == 2:
+                self.data.rewards[params.buyer] = sp.record(diamond = 0, gold = 0, silver = 1, bronze = 0)
+            sp.if nft_type == 3:
+                self.data.rewards[params.buyer] = sp.record(diamond = 0, gold = 0, silver = 0, bronze = 1)
 
     """ [tokenId, oldItemId, newItemId] """
     @sp.entry_point
