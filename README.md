@@ -61,10 +61,10 @@
         - Setter function, which sets the fa2 contract associated with the current marketplace contract
      - create_twin: 
         - Params: [itemId, tokenId, seller, warranty]
-        - Given a serial number of an item, this creates a twin NFT on-chain.
+        - This entry point can only be called by the MintkartFA2 contract. Given a serial number of an item, this creates a twin NFT on-chain.
     - buy:
       - Params: [itemId, buyer]
-      - Given the serial number, this transfers the specified to the ‘buyer’ address field.
+      - This entry point can only be called by the admin address (central server). Given the serial number, this transfers the specified to the ‘buyer’ address field.
     - replace_item:
       - Params: [tokenId, oldItemId, newItemId]
       - This entry point can only be called by the MintkartFA2 contract. This updates the item replacement history.
@@ -73,3 +73,15 @@
       - This entry point can only be called by the MintkartFA2 contract. Given a tokenID, this completely decays the particular NFT.
 
 ## Gamification
+
+For every NFT that is minted on-chain, we are assigning it to a collection based upon its various metadata variables. These can be either of the following:
+#### Diamond
+![diamond](./_images/collections/diamond.png)
+#### Gold
+![gold](./_images/collections/gold.png)
+#### Silver
+![silver](./_images/collections/silver.jpg)
+#### Bronze
+![bronze](./_images/collections/bronze.jpeg)
+
+After the user collects certain of these by certain amounts, he/she can claim special discount coupons.
