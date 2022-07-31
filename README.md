@@ -75,13 +75,13 @@
 ## Gamification
 
 For every NFT that is minted on-chain, we are assigning it to a collection based upon its various metadata variables. These can be either of the following:
-#### Diamond
+#### Diamond Class
 ![diamond](./_images/collections/diamond.png)
-#### Gold
+#### Gold Class
 ![gold](./_images/collections/gold.png)
-#### Silver
+#### Silver Class
 ![silver](./_images/collections/silver.jpg)
-#### Bronze
+#### Bronze Class
 ![bronze](./_images/collections/bronze.jpeg)
 
 After the user collects certain of these by certain amounts, he/she can claim special discount coupons.
