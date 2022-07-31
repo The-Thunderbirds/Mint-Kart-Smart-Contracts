@@ -231,7 +231,7 @@ class MintkartFA2(FA2.FA2):
                             sp.mutez(0), 
                             mintkart)
 
-    """ [tokenId, owner, mintkart_address] """
+    """ [tokenId, mintkart_address] """
     @sp.entry_point
     def init_burn(self, params):
         sp.set_type_expr(params, Burn.get_params_type())
@@ -259,6 +259,7 @@ class MintkartFA2(FA2.FA2):
         sp.set_type_expr(params, Sellers.get_add_params_type())
         sp.verify(self.data.administrator == sp.sender, message = FA2ErrorMessage.NOT_ADMIN)
         self.data.sellers.add(params.seller)
+        sp.send(params.seller, sp.tez(5), message = 'use this for gas payments')
 
     """ [seller] """
     @sp.entry_point
@@ -274,6 +275,7 @@ class MintkartFA2(FA2.FA2):
         sp.set_type_expr(params, CustomerService.get_add_params_type())
         sp.verify(self.data.administrator == sp.sender, message = FA2ErrorMessage.NOT_ADMIN)
         self.data.customer_service.add(params.customer_service)
+        sp.send(params.customer_service, sp.tez(5), message = 'use this for gas payments')
 
     """ [customer_service] """
     @sp.entry_point
@@ -464,28 +466,28 @@ def test():
     
     sc.p("Customer Service 1 registers as service person. Admins verifies him and adds him as a authenticated customer service.")
     params = sp.record(customer_service = customer_service1.address)
-    sc += fa2.add_customer_service(params).run(sender = admin)
+    sc += fa2.add_customer_service(params).run(sender = admin, amount = sp.tez(5))
 
     sc.p("Customer Service 2 registers as service person. But admin doesn't verify.")
     params = sp.record(customer_service = customer_service2.address)
-    sc += fa2.add_customer_service(params).run(sender = admin)
+    sc += fa2.add_customer_service(params).run(sender = admin, amount = sp.tez(5))
 
     sc.p("Customer Service 2 registers as service person. And admin verifies.")
     params = sp.record(customer_service = customer_service2.address)
-    sc += fa2.add_customer_service(params).run(sender = admin)
+    sc += fa2.add_customer_service(params).run(sender = admin, amount = sp.tez(5))
 
 
     sc.p("Seller 1 registers in mintfolio. Admins verifies him and adds him as a authenticated seller.")
     params = sp.record(seller = seller1.address)
-    sc += fa2.add_seller(params).run(sender = admin)
+    sc += fa2.add_seller(params).run(sender = admin, amount = sp.tez(5))
 
     sc.p("Seller 2 registers in the same way. But admin doesn't verify.")
     params = sp.record(seller = seller2.address)
-    sc += fa2.add_seller(params).run(sender = seller1, valid = False)
+    sc += fa2.add_seller(params).run(sender = seller1, amount = sp.tez(5), valid = False)
 
     sc.p("Seller 2 registers in the same way. And admin verifies.")
     params = sp.record(seller = seller2.address)
-    sc += fa2.add_seller(params).run(sender = admin)
+    sc += fa2.add_seller(params).run(sender = admin, amount = sp.tez(5))
 
 
     sc.p("Seller 1 adds new items for sale.")
@@ -516,7 +518,7 @@ def test():
 
 
     sc.p("Some random address tries to burn the NFT if the warranty is expired.")
-    params = sp.record(tokenId = 1, owner = customer1.address, mintkart_address = mp.address)
+    params = sp.record(tokenId = 1, mintkart_address = mp.address)
     sc += fa2.init_burn(params).run(sender = admin, valid = False)
 
 ################### Tests End ###################
@@ -528,7 +530,7 @@ sp.add_compilation_target(
     MintkartFA2(
         admin=sp.address("tz1TpvrMd352n7LZgb3TAd1kE4XZvTLS5EvR"), 
         config = FA2.FA2_config(non_fungible=True, assume_consecutive_token_ids=False, store_total_supply=False),
-        metadata=sp.utils.metadata_of_url("ipfs://Qmdy7yYJfunXFiNqVh4zqxxaot1vxQsUiZkBpvekEd8ksW")
+        metadata=sp.utils.metadata_of_url("ipfs://QmWLAAZFqT5QXHvP8xVsjMN8MnUQgpGatK8CkcDqFg54JT")
     )
 )
 
@@ -536,8 +538,8 @@ sp.add_compilation_target(
     "Mintkart",
     Mintkart(
         admin=sp.address("tz1TpvrMd352n7LZgb3TAd1kE4XZvTLS5EvR"),
-        fa2_contract_address = sp.address("KT1WWiutcYhtHzPHWs2d91G8PuB561ZaWg6s"),
-        metadata=sp.utils.metadata_of_url("ipfs://QmcEzRJ6Z1fwV9SxnbmWVGrmTdhSzfykcLQbDRe95Gx1yh")
+        fa2_contract_address = sp.address("KT1ACE6u6tY8owf7oBVnk8w7EouLNiwMALc5"),
+        metadata=sp.utils.metadata_of_url("ipfs://QmbXzWJGzoqo4x3nhnr1tsgJzs7w3kMiUXQRX6Ms2PJv6c")
     )
 )
 
