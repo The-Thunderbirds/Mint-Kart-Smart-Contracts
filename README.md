@@ -6,7 +6,7 @@
 
 - Language Used: Smartpy
 - Blockchain: Tezos
-- Testnet: Jakartanet
+- Testnet: Jakartanet (Checkout the latest RPC node testnet that is active during the time of local setup and change the code accordingly)
 - Number of contracts: 2
 - Contracts: 
   - MintkartFA2 contract
